@@ -1,0 +1,273 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+
+// Create a RenderTexture with enableRandomWrite flag and set it
+// with cs.SetTexture
+
+RWStructuredBuffer<float3> Gradient;
+int nx;
+int ny;
+int nz;
+StructuredBuffer<float> xdiv;
+StructuredBuffer<float> ydiv;
+StructuredBuffer<float> zdiv;
+RWStructuredBuffer<float4> Flux;
+
+int voxelIndex(uint x, uint y, uint z) {
+    return x * (nz * ny) + z * (ny) + y;
+}
+
+int totalIndex(uint nvoxel, uint localIndex) {
+    return 8 * nvoxel + localIndex;
+}
+
+[numthreads(8,8,8)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+    // TODO: insert actual code here!
+    if (id.x >= nx || id.y >= ny || id.z >= nz) {
+        return;
+    }
+    
+    // Reference
+    // https://numpy.org/doc/stable/reference/generated/numpy.gradient.html
+
+    // Get voxel index
+    int vIndex = voxelIndex(id.x,id.y,id.z);
+
+    // points in voxel index
+    int index0 = totalIndex(vIndex, 0);
+    int index1 = totalIndex(vIndex, 1);
+    int index2 = totalIndex(vIndex, 2);
+    int index3 = totalIndex(vIndex, 3);
+    int index4 = totalIndex(vIndex, 4);
+    int index5 = totalIndex(vIndex, 5);
+    int index6 = totalIndex(vIndex, 6);
+    int index7 = totalIndex(vIndex, 7);
+
+    // flux values at voxel vertices
+    float p0 = Flux[index0].w;
+    float p1 = Flux[index1].w;
+    float p2 = Flux[index2].w;
+    float p3 = Flux[index3].w;
+    float p4 = Flux[index4].w;
+    float p5 = Flux[index5].w;
+    float p6 = Flux[index6].w;
+    float p7 = Flux[index7].w;
+
+
+    // initialize Gradient
+
+    // fx
+    float fx0;
+    float fx1;
+    float fx2;
+    float fx3;
+    float fx4;
+    float fx5;
+    float fx6;
+    float fx7;
+
+    // fy
+    float fy0;
+    float fy1;
+    float fy2;
+    float fy3;
+    float fy4;
+    float fy5;
+    float fy6;
+    float fy7;
+
+    // fz
+    float fz0;
+    float fz1;
+    float fz2;
+    float fz3;
+    float fz4;
+    float fz5;
+    float fz6;
+    float fz7;
+
+    int vbIndex;
+    int vfIndex;
+    
+    // *****************************************
+    // X DERIVATIVE
+
+    if (id.x == 0 ) 
+    {
+            
+    fx0 = 0;
+    fx1 = 0;
+    fx2 = 0;
+    fx3 = 0;
+    fx4 = 0;
+    fx5 = 0;
+    fx6 = 0;
+    fx7 = 0;
+
+    }
+    else
+    {
+    // STEP X AXIS (voxel in front, voxel at the back, of the voxel)
+    float hxf = xdiv[id.x+2] - xdiv[id.x+1];
+    float hxb = xdiv[id.x] - xdiv[id.x-1];
+    float hx = xdiv[id.x+1] - xdiv[id.x];
+
+    float hxf2 = hxf * hxf;
+    float hxb2 = hxb * hxb;
+
+    // Back voxel for x AXIS
+    vbIndex = voxelIndex(id.x-1,id.y,id.z);
+    // Front voxel for x AXIS
+    vfIndex = voxelIndex(id.x+1,id.y,id.z);
+
+    // fx0 = ( hxb2*p1                             + (hxf2 - hxb2)*p0 - hxf2*Flux[totalIndex(vbIndex, 1)].w    ) / (hxb*hxf*(hxb + hxf));
+    // fx1 = ( hxb2*Flux[totalIndex(vfIndex, 0)].w + (hxf2 - hxb2)*p1 - hxf2*p0                                ) / (hxb*hxf*(hxb + hxf));
+    // fx2 = ( hxb2*Flux[totalIndex(vfIndex, 3)].w + (hxf2 - hxb2)*p2 - hxf2*p3                                ) / (hxb*hxf*(hxb + hxf));
+    // fx3 = ( hxb2*p2                             + (hxf2 - hxb2)*p3 - hxf2*Flux[totalIndex(vbIndex, 2)].w    ) / (hxb*hxf*(hxb + hxf));
+    // fx4 = ( hxb2*p5                             + (hxf2 - hxb2)*p4 - hxf2*Flux[totalIndex(vbIndex, 5)].w    ) / (hxb*hxf*(hxb + hxf));
+    // fx5 = ( hxb2*Flux[totalIndex(vfIndex, 4)].w + (hxf2 - hxb2)*p5 - hxf2*p4                                ) / (hxb*hxf*(hxb + hxf));
+    // fx6 = ( hxb2*Flux[totalIndex(vfIndex, 7)].w + (hxf2 - hxb2)*p6 - hxf2*p7                                ) / (hxb*hxf*(hxb + hxf));
+    // fx7 = ( hxb2*p6                             + (hxf2 - hxb2)*p7 - hxf2*Flux[totalIndex(vbIndex, 6)].w    ) / (hxb*hxf*(hxb + hxf));
+
+    fx0 = ( p1                              - Flux[totalIndex(vbIndex, 1)].w    ) / (2*hx);
+    fx1 = ( Flux[totalIndex(vfIndex, 0)].w  - p0                                ) / (2*hx);
+    fx2 = ( Flux[totalIndex(vfIndex, 3)].w  - p3                                ) / (2*hx);
+    fx3 = ( p2                              - Flux[totalIndex(vbIndex, 2)].w    ) / (2*hx);
+    fx4 = ( p5                              - Flux[totalIndex(vbIndex, 5)].w    ) / (2*hx);
+    fx5 = ( Flux[totalIndex(vfIndex, 4)].w - p4                                ) / (2*hx);
+    fx6 = ( Flux[totalIndex(vfIndex, 7)].w - p7                                ) / (2*hx);
+    fx7 = ( p6                             - Flux[totalIndex(vbIndex, 6)].w    ) / (2*hx);
+
+    }
+    // *****************************************
+
+
+
+    // *****************************************
+    // Y DERIVATIVE
+
+
+    if(id.y == 0)
+    {
+    fy0 = 0;
+    fy1 = 0;
+    fy2 = 0;
+    fy3 = 0;
+    fy4 = 0;
+    fy5 = 0;
+    fy6 = 0;
+    fy7 = 0;
+
+    }
+    else
+    {
+    // STEP Y AXIS (voxel in front, voxel at the back, of the voxel)
+    float hyf = ydiv[id.y+2] - ydiv[id.y+1];
+    float hyb = ydiv[id.y] - ydiv[id.y-1];
+    float hy = ydiv[id.y+1] - ydiv[id.y];
+
+    float hyf2 = hyf * hyf;
+    float hyb2 = hyb * hyb;
+    
+    // Back voxel for y AXIS
+    vbIndex = voxelIndex(id.x,id.y-1,id.z);
+    // Front voxel for x AXIS
+    vfIndex = voxelIndex(id.x,id.y+1,id.z);
+
+    // fy0 = ( hyb2*p4                             + (hyf2 - hyb2)*p0 - hyf2*Flux[totalIndex(vbIndex, 4)].w    ) / (hyb*hyf*(hyb + hyf));
+    // fy1 = ( hyb2*p5                             + (hyf2 - hyb2)*p1 - hyf2*Flux[totalIndex(vbIndex, 5)].w    ) / (hyb*hyf*(hyb + hyf));
+    // fy2 = ( hyb2*p6                             + (hyf2 - hyb2)*p2 - hyf2*Flux[totalIndex(vbIndex, 6)].w    ) / (hyb*hyf*(hyb + hyf));
+    // fy3 = ( hyb2*p7                             + (hyf2 - hyb2)*p3 - hyf2*Flux[totalIndex(vbIndex, 7)].w    ) / (hyb*hyf*(hyb + hyf));
+    // fy4 = ( hyb2*Flux[totalIndex(vfIndex, 0)].w + (hyf2 - hyb2)*p4 - hyf2*p0                                ) / (hyb*hyf*(hyb + hyf));
+    // fy5 = ( hyb2*Flux[totalIndex(vfIndex, 1)].w + (hyf2 - hyb2)*p5 - hyf2*p1                                ) / (hyb*hyf*(hyb + hyf));
+    // fy6 = ( hyb2*Flux[totalIndex(vfIndex, 2)].w + (hyf2 - hyb2)*p6 - hyf2*p2                                ) / (hyb*hyf*(hyb + hyf));
+    // fy7 = ( hyb2*Flux[totalIndex(vfIndex, 3)].w + (hyf2 - hyb2)*p7 - hyf2*p3                                ) / (hyb*hyf*(hyb + hyf));
+    
+    fy0 = ( p4                             - Flux[totalIndex(vbIndex, 4)].w    ) / (2*hy);
+    fy1 = ( p5                             - Flux[totalIndex(vbIndex, 5)].w    ) / (2*hy);
+    fy2 = ( p6                             - Flux[totalIndex(vbIndex, 6)].w    ) / (2*hy);
+    fy3 = ( p7                              - Flux[totalIndex(vbIndex, 7)].w    ) / (2*hy);
+    fy4 = ( Flux[totalIndex(vfIndex, 0)].w  - p0                                ) / (2*hy);
+    fy5 = ( Flux[totalIndex(vfIndex, 1)].w  - p1                                ) / (2*hy);
+    fy6 = ( Flux[totalIndex(vfIndex, 2)].w - p2                               ) / (2*hy);
+    fy7 = ( Flux[totalIndex(vfIndex, 3)].w  - p3                                ) / (2*hy);
+
+}
+
+
+
+    // *****************************************
+
+
+
+
+
+
+    // *****************************************
+    // Z DERIVATIVE
+
+    if(id.z == 0)
+    {
+    fz0 = 0;
+    fz1 = 0;
+    fz2 = 0;
+    fz3 = 0;
+    fz4 = 0;
+    fz5 = 0;
+    fz6 = 0;
+    fz7 = 0;   
+    }
+    else
+    {
+        
+    // STEP Z AXIS (voxel in front, voxel at the back, of the voxel)
+    float hzf = zdiv[id.z+2] - zdiv[id.z+1];
+    float hzb = zdiv[id.z] - zdiv[id.z-1];
+    float hz = zdiv[id.z+1] - zdiv[id.z];
+
+    float hzf2 = hzf * hzf;
+    float hzb2 = hzb * hzb;
+
+    // Back voxel for y AXIS
+    vbIndex = voxelIndex(id.x,id.y,id.z-1);
+    // Front voxel for x AXIS
+    vfIndex = voxelIndex(id.x,id.y,id.z+1);
+
+    // fz0 = ( hzb2*Flux[totalIndex(vfIndex, 3)].w + (hzf2 - hzb2)*p0 - hzf2*p3                                ) / (hzb*hzf*(hzb + hzf));
+    // fz1 = ( hzb2*Flux[totalIndex(vfIndex, 2)].w + (hzf2 - hzb2)*p1 - hzf2*p2                                ) / (hzb*hzf*(hzb + hzf));
+    // fz2 = ( hzb2*p1                             + (hzf2 - hzb2)*p2 - hzf2*Flux[totalIndex(vbIndex, 1)].w    ) / (hzb*hzf*(hzb + hzf));
+    // fz3 = ( hzb2*p0                             + (hzf2 - hzb2)*p3 - hzf2*Flux[totalIndex(vbIndex, 0)].w    ) / (hzb*hzf*(hzb + hzf));
+    // fz4 = ( hzb2*Flux[totalIndex(vfIndex, 7)].w + (hzf2 - hzb2)*p4 - hzf2*p7                                ) / (hzb*hzf*(hzb + hzf));
+    // fz5 = ( hzb2*Flux[totalIndex(vfIndex, 6)].w + (hzf2 - hzb2)*p5 - hzf2*p6                                ) / (hzb*hzf*(hzb + hzf));
+    // fz6 = ( hzb2*p5                             + (hzf2 - hzb2)*p6 - hzf2*Flux[totalIndex(vbIndex, 5)].w    ) / (hzb*hzf*(hzb + hzf));
+    // fz7 = ( hzb2*p4                             + (hzf2 - hzb2)*p7 - hzf2*Flux[totalIndex(vbIndex, 4)].w    ) / (hzb*hzf*(hzb + hzf));  
+
+
+    fz0 = ( Flux[totalIndex(vfIndex, 3)].w - p3                                ) / (2*hz);
+    fz1 = ( Flux[totalIndex(vfIndex, 2)].w  - p2                                ) / (2*hz);
+    fz2 = ( p1                            - Flux[totalIndex(vbIndex, 1)].w    ) / (2*hz);
+    fz3 = ( p0                              - Flux[totalIndex(vbIndex, 0)].w    ) / (2*hz);
+    fz4 = ( Flux[totalIndex(vfIndex, 7)].w  - p7                                ) / (2*hz);
+    fz5 = ( Flux[totalIndex(vfIndex, 6)].w  - p6                                ) / (2*hz);
+    fz6 = ( p5                              - Flux[totalIndex(vbIndex, 5)].w    ) / (2*hz);
+    fz7 = ( p4                              - Flux[totalIndex(vbIndex, 4)].w    ) / (2*hz);  
+
+    }
+    // *****************************************
+
+
+
+    // Assign results
+
+    Gradient[index0] = float3(fx0, fy0, fz0);
+    Gradient[index1] = float3(fx1, fy1, fz1);
+    Gradient[index2] = float3(fx2, fy2, fz2);
+    Gradient[index3] = float3(fx3, fy3, fz3);
+    Gradient[index4] = float3(fx4, fy4, fz4);
+    Gradient[index5] = float3(fx5, fy5, fz5);
+    Gradient[index6] = float3(fx6, fy6, fz6);
+    Gradient[index7] = float3(fx7, fy7, fz7);
+
+}

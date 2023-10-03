@@ -1,0 +1,48 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+#include "/Includes/Geometry.compute"
+// Resource: https://bronsonzgeb.com/index.php/2021/05/29/gpu-mesh-voxelizer-part-2/
+// https://gdbooks.gitbooks.io/3dcollisions/content/Chapter4/aabb-triangle.html
+// https://dyn4j.org/2010/01/sat/
+
+
+
+
+StructuredBuffer<Triangle> walkTriangles;
+StructuredBuffer<AABB> walkAABB;
+RWStructuredBuffer<int> intersects;
+
+int _TriangleCount;
+int _AABBCount;
+
+
+static const int numThreads = 256;
+
+[numthreads(numThreads, 1, 1)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+    // TODO: insert actual code here!
+
+    if (id.x > uint(_AABBCount)) {
+        return;
+    }
+
+    AABB aabb = walkAABB[id.x];
+
+    bool inters = false;
+
+    for (int i = 0; i < _TriangleCount; i ++)
+    {
+        Triangle tri = walkTriangles[i];
+        //inters = intersTriAABB(tri, aabb); 
+        inters = IntersectsTriangleAabb(tri, aabb);
+
+        if (inters)
+        {
+            intersects[id.x] = 1;
+            return;
+        }
+    }
+
+    intersects[id.x] = 0;
+}

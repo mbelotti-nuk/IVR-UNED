@@ -1,0 +1,118 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+
+RWStructuredBuffer<float3> points;
+int nx;
+int ny;
+int nz;
+StructuredBuffer<float> xdiv;
+StructuredBuffer<float> ydiv;
+StructuredBuffer<float> zdiv;
+StructuredBuffer<float3> Grad;
+
+
+int voxelIndex(uint x, uint y, uint z) {
+    return x * (nz * ny) + z * (ny) + y;
+}
+
+int totalIndex(uint nvoxel, uint localIndex) {
+    return 8 * nvoxel + localIndex;
+}
+
+
+[numthreads(8,8,8)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+    // TODO: insert actual code here!
+    if (id.x >= nx || id.y >= ny || id.z >= nz) {
+        return;
+    }
+
+    // index in flux vector
+    int vIndex = voxelIndex(id.x,id.y,id.z);
+    int index0 = totalIndex(vIndex, 0);
+    int index1 = totalIndex(vIndex, 1);
+    int index2 = totalIndex(vIndex, 2);
+    int index3 = totalIndex(vIndex, 3);
+    int index4 = totalIndex(vIndex, 4);
+    int index5 = totalIndex(vIndex, 5);
+    int index6 = totalIndex(vIndex, 6);
+    int index7 = totalIndex(vIndex, 7);
+    
+    float3 val0;
+    float3 val1;
+    float3 val2;
+    float3 val3;
+    float3 val4;
+    float3 val5;
+    float3 val6;
+    float3 val7;
+
+
+
+    if (id.x == 0 || id.y == 0 || id.z == 0 ) //|| id.x == nx-1 || id.y == ny-1 || id.z == nz-1)
+    {
+    val0 = float3(0,0,0);
+    val1 = float3(0,0,0);
+    val2 = float3(0,0,0);
+    val3 = float3(0,0,0);
+    val4 = float3(0,0,0);
+    val5 = float3(0,0,0);
+    val6 = float3(0,0,0);
+    val7 = float3(0,0,0);
+
+        
+    }
+    else
+    {
+        // 0
+        val0 =   (      Grad[voxelIndex(id.x,id.y,id.z)]        +  Grad[voxelIndex(id.x-1,id.y,id.z)]    + Grad[voxelIndex(id.x,id.y,id.z+1)]    +
+                        Grad[voxelIndex(id.x-1,id.y,id.z+1)]    +  Grad[voxelIndex(id.x,id.y-1,id.z)]    + Grad[voxelIndex(id.x-1,id.y-1,id.z)]  + 
+                        Grad[voxelIndex(id.x,id.y-1,id.z+1)]    +  Grad[voxelIndex(id.x-1,id.y-1,id.z+1)]  ) / 8 ;
+        
+        // 1
+        val1 =   (      Grad[voxelIndex(id.x,id.y,id.z)]        + Grad[voxelIndex(id.x+1,id.y,id.z)]    + Grad[voxelIndex(id.x,id.y,id.z+1)]    +
+                        Grad[voxelIndex(id.x+1,id.y,id.z+1)]    + Grad[voxelIndex(id.x,id.y-1,id.z)]    + Grad[voxelIndex(id.x+1,id.y-1,id.z)]  + 
+                        Grad[voxelIndex(id.x,id.y-1,id.z+1)]    + Grad[voxelIndex(id.x+1,id.y-1,id.z+1)]  ) / 8 ;
+
+        // 2
+        val2 =   (      Grad[voxelIndex(id.x,id.y,id.z)]        + Grad[voxelIndex(id.x+1,id.y,id.z)]    + Grad[voxelIndex(id.x,id.y,id.z-1)]    +
+                        Grad[voxelIndex(id.x+1,id.y,id.z-1)]    + Grad[voxelIndex(id.x,id.y-1,id.z)]    + Grad[voxelIndex(id.x+1,id.y-1,id.z)]  + 
+                        Grad[voxelIndex(id.x,id.y-1,id.z-1)]    + Grad[voxelIndex(id.x+1,id.y-1,id.z-1)]  ) / 8 ;
+
+        // 3
+        val3 =   (      Grad[voxelIndex(id.x,id.y,id.z)]        + Grad[voxelIndex(id.x-1,id.y,id.z)]    + Grad[voxelIndex(id.x,id.y,id.z-1)]    +
+                        Grad[voxelIndex(id.x-1,id.y,id.z-1)]    + Grad[voxelIndex(id.x,id.y-1,id.z)]    + Grad[voxelIndex(id.x-1,id.y-1,id.z)]  + 
+                        Grad[voxelIndex(id.x,id.y-1,id.z-1)]    + Grad[voxelIndex(id.x-1,id.y-1,id.z-1)]  ) / 8 ;
+
+        // 4
+        val4 =   (      Grad[voxelIndex(id.x,id.y,id.z)]        + Grad[voxelIndex(id.x-1,id.y,id.z)]    + Grad[voxelIndex(id.x,id.y,id.z+1)]    +
+                        Grad[voxelIndex(id.x-1,id.y,id.z+1)]    + Grad[voxelIndex(id.x,id.y+1,id.z)]    + Grad[voxelIndex(id.x-1,id.y+1,id.z)]  + 
+                        Grad[voxelIndex(id.x,id.y+1,id.z+1)]    + Grad[voxelIndex(id.x-1,id.y+1,id.z+1)]  ) / 8 ;
+
+        // 5
+        val5 =   (      Grad[voxelIndex(id.x,id.y,id.z)]        + Grad[voxelIndex(id.x+1,id.y,id.z)]    + Grad[voxelIndex(id.x,id.y,id.z+1)]    +
+                        Grad[voxelIndex(id.x+1,id.y,id.z+1)]    + Grad[voxelIndex(id.x,id.y+1,id.z)]    + Grad[voxelIndex(id.x+1,id.y+1,id.z)]  + 
+                        Grad[voxelIndex(id.x,id.y+1,id.z+1)]    + Grad[voxelIndex(id.x+1,id.y+1,id.z+1)]  ) / 8 ;
+
+        // 6
+        val6 =   (      Grad[voxelIndex(id.x,id.y,id.z)]        + Grad[voxelIndex(id.x+1,id.y,id.z)]    + Grad[voxelIndex(id.x,id.y,id.z-1)]    +
+                        Grad[voxelIndex(id.x+1,id.y,id.z-1)]    + Grad[voxelIndex(id.x,id.y+1,id.z)]    + Grad[voxelIndex(id.x+1,id.y+1,id.z)]  + 
+                        Grad[voxelIndex(id.x,id.y+1,id.z-1)]    + Grad[voxelIndex(id.x+1,id.y+1,id.z-1)]  ) / 8 ;
+
+        // 7
+        val7 =   (      Grad[voxelIndex(id.x,id.y,id.z)]        + Grad[voxelIndex(id.x-1,id.y,id.z)]    + Grad[voxelIndex(id.x,id.y,id.z-1)]    +
+                        Grad[voxelIndex(id.x-1,id.y,id.z-1)]    + Grad[voxelIndex(id.x,id.y+1,id.z)]    + Grad[voxelIndex(id.x-1,id.y+1,id.z)]  + 
+                        Grad[voxelIndex(id.x,id.y+1,id.z-1)]    + Grad[voxelIndex(id.x-1,id.y+1,id.z-1)]  ) / 8 ;
+       
+    }
+
+    points[index0] = float3(val0);
+    points[index1] = float3(val1);
+    points[index2] = float3(val2);
+    points[index3] = float3(val3);
+    points[index4] = float3(val4);
+    points[index5] = float3(val5);
+    points[index6] = float3(val6);
+    points[index7] = float3(val7);
+}

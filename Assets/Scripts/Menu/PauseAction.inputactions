@@ -1,0 +1,34 @@
+{
+    "name": "PauseAction",
+    "maps": [
+        {
+            "name": "Paues",
+            "id": "2c184215-a84c-4c4f-9d29-9fb1085dcd18",
+            "actions": [
+                {
+                    "name": "PauseGame",
+                    "type": "Button",
+                    "id": "7d90d396-567c-4fd2-a086-c2989925a4cf",
+                    "expectedControlType": "Button",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                }
+            ],
+            "bindings": [
+                {
+                    "name": "",
+                    "id": "d99122d5-e9a9-455c-a786-c06087c14474",
+                    "path": "<Keyboard>/m",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "PauseGame",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                }
+            ]
+        }
+    ],
+    "controlSchemes": []
+}

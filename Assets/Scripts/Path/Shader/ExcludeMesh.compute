@@ -1,0 +1,54 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+#include "/Includes/Geometry.compute"
+
+// Create a RenderTexture with enableRandomWrite flag and set it
+// with cs.SetTexture
+
+
+StructuredBuffer<Triangle> buildingTriangles;
+float4 centerAABB;
+float4 extentAABB;
+RWStructuredBuffer<int> intersects;
+
+int _TriangleCount;
+
+static const int numThreads = 64;
+
+
+
+[numthreads(numThreads, 1, 1)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+    if (id.x > _TriangleCount) return;
+	
+    Triangle tri = buildingTriangles[id.x];
+    
+    float3 up = float3(0, 1, 0);
+    float3 normal = computeNormal(tri);
+
+
+    // Exclude walkable meshes 
+    if (dot(normal, up) == 1)
+    {
+        intersects[id.x] = 0;
+        return;
+    }
+    
+    AABB aabb;
+
+    aabb.center = centerAABB.xyz;
+    aabb.extents = extentAABB.xyz;
+
+	bool inters = IntersectsTriangleAabb(tri, aabb);
+
+    if (inters)
+    {
+        intersects[id.x] = 1;
+    }
+    else
+    {
+        intersects[id.x] = 0;
+    }
+
+}

@@ -1,0 +1,252 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+
+// Create a RenderTexture with enableRandomWrite flag and set it
+// with cs.SetTexture
+
+RWStructuredBuffer<float3> Gradient;
+int nx;
+int ny;
+int nz;
+StructuredBuffer<float> xdiv;
+StructuredBuffer<float> ydiv;
+StructuredBuffer<float> zdiv;
+RWStructuredBuffer<float4> Flux;
+
+int voxelIndex(uint x, uint y, uint z) {
+    return x * (nz * ny) + z * (ny) + y;
+}
+
+int totalIndex(uint nvoxel, uint localIndex) {
+    return 8 * nvoxel + localIndex;
+}
+
+float delta(float f0, float f1, float d){
+    return (f1-f0)/d;
+}
+
+
+[numthreads(8,8,8)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+    // TODO: insert actual code here!
+    if (id.x >= nx || id.y >= ny || id.z >= nz) {
+        return;
+    }
+    
+
+    // Get voxel index
+    int vIndex = voxelIndex(id.x,id.y,id.z);
+
+    // points in voxel index
+    int index0 = totalIndex(vIndex, 0);
+    int index1 = totalIndex(vIndex, 1);
+    int index2 = totalIndex(vIndex, 2);
+    int index3 = totalIndex(vIndex, 3);
+    int index4 = totalIndex(vIndex, 4);
+    int index5 = totalIndex(vIndex, 5);
+    int index6 = totalIndex(vIndex, 6);
+    int index7 = totalIndex(vIndex, 7);
+
+    // flux values at voxel vertices
+    float p0 = Flux[index0].w;
+    float p1 = Flux[index1].w;
+    float p2 = Flux[index2].w;
+    float p3 = Flux[index3].w;
+    float p4 = Flux[index4].w;
+    float p5 = Flux[index5].w;
+    float p6 = Flux[index6].w;
+    float p7 = Flux[index7].w;
+
+
+    // initialize Gradient
+
+    // fx
+    float fx0;
+    float fx1;
+    float fx2;
+    float fx3;
+    float fx4;
+    float fx5;
+    float fx6;
+    float fx7;
+
+    // fy
+    float fy0;
+    float fy1;
+    float fy2;
+    float fy3;
+    float fy4;
+    float fy5;
+    float fy6;
+    float fy7;
+
+    // fz
+    float fz0;
+    float fz1;
+    float fz2;
+    float fz3;
+    float fz4;
+    float fz5;
+    float fz6;
+    float fz7;
+
+    int vbIndex;
+    int vfIndex;
+    
+    // *****************************************
+    // X DERIVATIVE
+
+    if (id.x == 0 ) 
+    {
+            
+    fx0 = 0;
+    fx1 = 0;
+    fx2 = 0;
+    fx3 = 0;
+    fx4 = 0;
+    fx5 = 0;
+    fx6 = 0;
+    fx7 = 0;
+
+    }
+    else
+    {
+    // STEP X AXIS (voxel in front, voxel at the back, of the voxel)
+    float hxf = xdiv[id.x+2] - xdiv[id.x+1];
+    float hxb = xdiv[id.x] - xdiv[id.x-1];
+    float hx = xdiv[id.x+1] - xdiv[id.x];
+
+    // Back voxel for x AXIS
+    vbIndex = voxelIndex(id.x-1,id.y,id.z);
+    // Front voxel for x AXIS
+    vfIndex = voxelIndex(id.x+1,id.y,id.z);
+
+
+    //fx0 = 1/2*( delta(p0,p1,hx) + delta(Flux[totalIndex(vbIndex, 0)].w, Flux[totalIndex(vbIndex, 1)].w, hxb) );
+    //fx1 = 1/2*( delta(p0,p1,hx) + delta(Flux[totalIndex(vfIndex, 0)].w, Flux[totalIndex(vfIndex, 1)].w, hxf) );                
+    //fx2 = 1/2*( delta(p3,p2,hx) + delta(Flux[totalIndex(vfIndex, 3)].w, Flux[totalIndex(vfIndex, 2)].w, hxf) );
+    //fx3 = 1/2*( delta(p3,p2,hx) + delta(Flux[totalIndex(vbIndex, 3)].w, Flux[totalIndex(vbIndex, 2)].w, hxb) );
+    //fx4 = 1/2*( delta(p4,p5,hx) + delta(Flux[totalIndex(vbIndex, 4)].w, Flux[totalIndex(vbIndex, 5)].w, hxb) );
+    //fx5 = 1/2*( delta(p4,p5,hx) + delta(Flux[totalIndex(vfIndex, 4)].w, Flux[totalIndex(vfIndex, 5)].w, hxf) );                
+    //fx6 = 1/2*( delta(p7,p6,hx) + delta(Flux[totalIndex(vfIndex, 7)].w, Flux[totalIndex(vfIndex, 6)].w, hxf) );
+    //fx7 = 1/2*( delta(p7,p6,hx) + delta(Flux[totalIndex(vbIndex, 7)].w, Flux[totalIndex(vbIndex, 6)].w, hxb) );
+
+    fx0 = 1/2*( (p1-p0)/hx + (Flux[totalIndex(vbIndex, 1)].w - Flux[totalIndex(vbIndex, 0)].w)/hxb );
+    fx1 = 1/2*( (p1-p0)/hx + (Flux[totalIndex(vfIndex, 1)].w - Flux[totalIndex(vfIndex, 0)].w)/hxf );                
+    fx2 = 1/2*( (p2-p3)/hx + (Flux[totalIndex(vfIndex, 2)].w - Flux[totalIndex(vfIndex, 3)].w )/hxf );
+    fx3 = 1/2*( (p2-p3)/hx + (Flux[totalIndex(vbIndex, 2)].w -  Flux[totalIndex(vbIndex, 3)].w)/hxb );
+    fx4 = 1/2*( (p5-p4)/hx + (Flux[totalIndex(vbIndex, 5)].w - Flux[totalIndex(vbIndex, 4)].w)/hxb );
+    fx5 = 1/2*( (p5-p4)/hx + (Flux[totalIndex(vfIndex, 5)].w - Flux[totalIndex(vfIndex, 4)].w)/hxf );                
+    fx6 = 1/2*( (p6-p7)/hx + (Flux[totalIndex(vfIndex, 6)].w - Flux[totalIndex(vfIndex, 7)].w)/hxf );
+    fx7 = 1/2*( (p6-p7)/hx + (Flux[totalIndex(vbIndex, 6)].w - Flux[totalIndex(vbIndex, 7)].w)/hxb );
+
+    }
+    // *****************************************
+
+
+
+    // *****************************************
+    // Y DERIVATIVE
+
+
+    if(id.y == 0)
+    {
+    fy0 = 0;
+    fy1 = 0;
+    fy2 = 0;
+    fy3 = 0;
+    fy4 = 0;
+    fy5 = 0;
+    fy6 = 0;
+    fy7 = 0;
+
+    }
+    else
+    {
+    // STEP Y AXIS (voxel in front, voxel at the back, of the voxel)
+    float hyf = ydiv[id.y+2] - ydiv[id.y+1];
+    float hyb = ydiv[id.y] - ydiv[id.y-1];
+    float hy = ydiv[id.y+1] - ydiv[id.y];
+
+    // Back voxel for y AXIS
+    vbIndex = voxelIndex(id.x,id.y-1,id.z);
+    // Front voxel for x AXIS
+    vfIndex = voxelIndex(id.x,id.y+1,id.z);
+
+    
+    fy0 = 1/2*( delta(p0,p4,hy) + delta(Flux[totalIndex(vbIndex, 0)].w, Flux[totalIndex(vbIndex,4)].w, hyb) );
+    fy1 = 1/2*( delta(p1,p5,hy) + delta(Flux[totalIndex(vbIndex, 1)].w, Flux[totalIndex(vbIndex, 5)].w, hyb) );                
+    fy2 = 1/2*( delta(p2,p6,hy) + delta(Flux[totalIndex(vbIndex, 2)].w, Flux[totalIndex(vbIndex, 6)].w, hyb) );
+    fy3 = 1/2*( delta(p3,p7,hy) + delta(Flux[totalIndex(vbIndex, 3)].w, Flux[totalIndex(vbIndex, 7)].w, hyb) );
+    fy4 = 1/2*( delta(p0,p4,hy) + delta(Flux[totalIndex(vfIndex, 0)].w, Flux[totalIndex(vfIndex, 4)].w, hyf) );
+    fy5 = 1/2*( delta(p1,p5,hy) + delta(Flux[totalIndex(vfIndex, 1)].w, Flux[totalIndex(vfIndex, 5)].w, hyf) );                
+    fy6 = 1/2*( delta(p2,p6,hy) + delta(Flux[totalIndex(vfIndex, 2)].w, Flux[totalIndex(vfIndex, 6)].w, hyf) );
+    fy7 = 1/2*( delta(p3,p7,hy) + delta(Flux[totalIndex(vfIndex, 3)].w, Flux[totalIndex(vfIndex, 7)].w, hyf) );
+    }
+
+
+
+    // *****************************************
+
+
+
+
+
+
+    // *****************************************
+    // Z DERIVATIVE
+
+    if(id.z == 0)
+    {
+    fz0 = 0;
+    fz1 = 0;
+    fz2 = 0;
+    fz3 = 0;
+    fz4 = 0;
+    fz5 = 0;
+    fz6 = 0;
+    fz7 = 0;   
+    }
+    else
+    {
+        
+    // STEP Z AXIS (voxel in front, voxel at the back, of the voxel)
+    float hzf = zdiv[id.z+2] - zdiv[id.z+1];
+    float hzb = zdiv[id.z] - zdiv[id.z-1];
+    float hz = zdiv[id.z+1] - zdiv[id.z];
+
+    // Back voxel for y AXIS
+    vbIndex = voxelIndex(id.x,id.y,id.z-1);
+    // Front voxel for x AXIS
+    vfIndex = voxelIndex(id.x,id.y,id.z+1);
+
+
+
+    fz0 = 1/2*( delta(p3,p0,hz) + delta(Flux[totalIndex(vfIndex, 3)].w, Flux[totalIndex(vfIndex,0)].w, hzf) );
+    fz1 = 1/2*( delta(p2,p1,hz) + delta(Flux[totalIndex(vfIndex, 2)].w, Flux[totalIndex(vfIndex, 1)].w, hzf) );                
+    fz2 = 1/2*( delta(p2,p1,hz) + delta(Flux[totalIndex(vbIndex, 2)].w, Flux[totalIndex(vbIndex, 1)].w, hzb) );
+    fz3 = 1/2*( delta(p3,p0,hz) + delta(Flux[totalIndex(vbIndex, 3)].w, Flux[totalIndex(vbIndex, 0)].w, hzb) );
+    fz4 = 1/2*( delta(p7,p4,hz) + delta(Flux[totalIndex(vfIndex, 7)].w, Flux[totalIndex(vfIndex, 4)].w, hzf) );
+    fz5 = 1/2*( delta(p6,p5,hz) + delta(Flux[totalIndex(vfIndex, 6)].w, Flux[totalIndex(vfIndex, 5)].w, hzf) );                
+    fz6 = 1/2*( delta(p6,p5,hz) + delta(Flux[totalIndex(vbIndex, 6)].w, Flux[totalIndex(vbIndex, 5)].w, hzb) );
+    fz7 = 1/2*( delta(p7,p4,hz) + delta(Flux[totalIndex(vbIndex, 7)].w, Flux[totalIndex(vbIndex, 4)].w, hzb) );
+
+    }
+    // *****************************************
+
+
+
+    // Assign results
+
+    Gradient[index0] = float3(fx0, fy0, fz0);
+    Gradient[index1] = float3(fx1, fy1, fz1);
+    Gradient[index2] = float3(fx2, fy2, fz2);
+    Gradient[index3] = float3(fx3, fy3, fz3);
+    Gradient[index4] = float3(fx4, fy4, fz4);
+    Gradient[index5] = float3(fx5, fy5, fz5);
+    Gradient[index6] = float3(fx6, fy6, fz6);
+    Gradient[index7] = float3(fx7, fy7, fz7);
+
+}
+

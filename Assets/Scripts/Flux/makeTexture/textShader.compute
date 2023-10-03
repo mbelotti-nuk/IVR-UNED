@@ -1,0 +1,193 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+
+// Create a RenderTexture with enableRandomWrite flag and set it
+// with cs.SetTexture
+RWTexture2D<float4> Result;
+StructuredBuffer<float> Flux;
+float max;
+StructuredBuffer<float> xdiv;
+StructuredBuffer<float> ydiv;
+StructuredBuffer<float> zdiv;
+int nx;
+int ny;
+int nz;
+int idy;
+float yLevel;
+int resolution;
+
+
+int IndexOfX(float item)
+{
+
+    uint lowerBound = 0;
+    uint upperBound = nx;
+    int location = -1;
+
+    while ((location == -1) && (lowerBound <= upperBound))
+    {
+        // find the middle
+        // int always convert to lower integer if float
+        uint middleLocation = lowerBound + (upperBound - lowerBound) / 2;
+        float leftSideValue = xdiv[middleLocation];
+        float rightSideValue = xdiv[middleLocation + 1];
+
+
+        // check for match
+        if ((item >= leftSideValue) && (item <= rightSideValue))
+        {
+            location = middleLocation;
+        }
+        else
+        {
+            // split data set to search appropriate side
+            if (item <= leftSideValue)
+            {
+                upperBound = middleLocation - 1;
+            }
+            else  //  which means (item > rightSideValue)
+            {
+                lowerBound = middleLocation + 1;
+            }
+        }
+    }
+    return location;
+}
+
+int IndexOfZ(float item)
+{
+
+    uint lowerBound = 0;
+    uint upperBound = nz;
+    int location = -1;
+
+    while ((location == -1) && (lowerBound <= upperBound))
+    {
+        // find the middle
+        // int always convert to lower integer if float
+        uint middleLocation = lowerBound + (upperBound - lowerBound) / 2;
+        float leftSideValue = zdiv[middleLocation];
+        float rightSideValue = zdiv[middleLocation + 1];
+
+
+        // check for match
+        if ((item >= leftSideValue) && (item <= rightSideValue))
+        {
+            location = middleLocation;
+        }
+        else
+        {
+            // split data set to search appropriate side
+            if (item <= leftSideValue)
+            {
+                upperBound = middleLocation - 1;
+            }
+            else  //  which means (item > rightSideValue)
+            {
+                lowerBound = middleLocation + 1;
+            }
+        }
+    }
+    return location;
+}
+
+int GetTotalIndex(int indVoxel, int localIndex)
+{
+    return 8 * indVoxel + localIndex;
+}
+
+int voxelIndex(uint x, uint y, uint z) {
+    return x * (nz * ny) + z * (ny)+y;
+}
+
+float4 GetColour(float v, float vmin, float vmax, float alpha)
+{
+    float4 c = float4( 1.0,1.0,1.0, alpha); // white
+    float dv;
+
+    if (v < vmin)
+        v = vmin;
+    if (v > vmax)
+        v = vmax;
+    dv = vmax - vmin;
+
+    if (v < (vmin + 0.25 * dv)) {
+        c.x = 0;
+        c.y = 4 * (v - vmin) / dv;
+    }
+    else if (v < (vmin + 0.5 * dv)) {
+        c.x = 0;
+        c.y = 1 + 4 * (vmin + 0.25 * dv - v) / dv;
+    }
+    else if (v < (vmin + 0.75 * dv)) {
+        c.x = 4 * (v - vmin - 0.5 * dv) / dv;
+        c.z = 0;
+    }
+    else {
+        c.y = 1 + 4 * (vmin + 0.75 * dv - v) / dv;
+        c.z = 0;
+    }
+
+    return c;
+}
+
+float TrilinearInterpolation(float P0, float P1, float P2, float P3, float P4, float P5, float P6, float P7, float u, float v, float w)
+{
+    float c01 = P0 * (1 - u) + P1 * u;
+    float c32 = P3 * (1 - u) + P2 * u;
+    float c45 = P4 * (1 - u) + P5 * u;
+    float c76 = P7 * (1 - u) + P6 * u;
+    float c0 = c32 * (1 - v) + c01 * v;
+    float c1 = c76 * (1 - v) + c45 * v;
+
+    // Return the interpolated value
+    return  c0 * (1 - w) + c1 * w;
+}
+
+
+[numthreads(8,8,1)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+
+    // ratio of compression/extension
+    float xRatio = ( xdiv[nx] - xdiv[0]) / resolution;
+    float zRatio = ( zdiv[nz] - zdiv[0] ) / resolution;
+
+    float projectedX = id.x * xRatio + xdiv[0];
+    float projectedZ = id.y * zRatio + zdiv[0];
+
+    int i = IndexOfX(projectedX);
+    int k = IndexOfZ(projectedZ);
+
+
+    if (i > nx-1 || k > nz-1 || i == -1 || k == -1)
+    {
+        return;
+    }
+
+    int voxInd = voxelIndex(i, idy, k);
+    float P0 = Flux[GetTotalIndex(voxInd, 0)];
+    float P1 = Flux[GetTotalIndex(voxInd, 1)];
+    float P2 = Flux[GetTotalIndex(voxInd, 2)];
+    float P3 = Flux[GetTotalIndex(voxInd, 3)];
+    float P4 = Flux[GetTotalIndex(voxInd, 4)];
+    float P5 = Flux[GetTotalIndex(voxInd, 5)];
+    float P6 = Flux[GetTotalIndex(voxInd, 6)];
+    float P7 = Flux[GetTotalIndex(voxInd, 7)];
+
+    // PIXEL CENTER
+    float u = (projectedX - xdiv[i]) / (xdiv[i + 1] - xdiv[i]);
+    float v = (projectedZ - zdiv[k]) / (zdiv[k + 1] - zdiv[k]);
+    float w = (yLevel - ydiv[idy]) / (ydiv[idy + 1] - ydiv[idy]);
+
+
+    float f = TrilinearInterpolation(P0, P1, P2, P3, P4, P5, P6, P7, u, v, w);
+    //float f = Flux[voxelIndex(i, idy, k)];
+
+    //float fScale = f/max;
+    
+    float4 color = GetColour(f, 0, max, 0.5);
+
+    //Result[id.xy] = float4(R, G, B, 0.0);
+    Result[id.xy] = color;
+}

@@ -1,0 +1,34 @@
+{
+    "name": "SetPathAction",
+    "maps": [
+        {
+            "name": "setMap",
+            "id": "24c6cc21-2454-4ffc-9804-c0f910eb1e11",
+            "actions": [
+                {
+                    "name": "setPathAction",
+                    "type": "Button",
+                    "id": "8d8862ea-8c85-4464-acb3-4b6973b1628f",
+                    "expectedControlType": "Button",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                }
+            ],
+            "bindings": [
+                {
+                    "name": "",
+                    "id": "5fdac86e-1d78-4cb1-a82b-c104f374336e",
+                    "path": "",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "setPathAction",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                }
+            ]
+        }
+    ],
+    "controlSchemes": []
+}
