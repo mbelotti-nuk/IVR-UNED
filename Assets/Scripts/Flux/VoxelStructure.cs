@@ -66,14 +66,16 @@ public class VoxelStructure
     {
 
     }
-
+    /// <summary>
+    /// Initialize radiation field to default by reading TextAsset file
+    /// </summary>
+    /// <param name="file"></param>
+    /// <param name="structureName">Name of radiation field</param>
+    /// <param name="type">radiation field type</param>
     public VoxelStructure(TextAsset file, string structureName, string type)
     {
-        // source: 0.11203E+13 phot/s
-        // 3600 seconds / hours
-        // 1e6 Sv--> uSv
-        // data in Sv/h --> need to be converted
-        float multiplicationFactor = 3600 * 1e6f * 0.11203e13f;
+
+        float multiplicationFactor =1f;
         firstDefaultRead(file);
         secondReadText(0, multiplicationFactor, 4);
         SetValues();
